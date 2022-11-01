@@ -5,23 +5,22 @@ import numpy as np
 import xarray as xr
 
 
-def bitmap_to_dataset(bmp: "mitsuba.Bitmap", dtype=float) -> xr.Dataset:
+def bitmap_to_dataarray(bmp: "mitsuba.Bitmap", dtype="float64") -> xr.DataArray:
     """
-    Format Mitsuba bitmap data as an xarray dataset.
+    Format Mitsuba bitmap data as an xarray data array.
 
     Parameters
     ----------
-    bmp : mitsuba.core.Bitmap or ndarray
-        Mitsuba bitmap to be converted to a dataset. A Numpy array can also be
-        passed directly for compatibility (this feature is deprecated).
+    bmp : mitsuba.core.Bitmap
+        Mitsuba bitmap to be converted to a data array.
 
     dtype : dtype
         Data type, forwarded to :func:`numpy.array`.
 
     Returns
     -------
-    dataset : Dataset
-        Bitmap data as an xarray dataset.
+    dataset : DataArray
+        Bitmap data as an xarray data array.
 
     Raises
     ------
@@ -42,51 +41,74 @@ def bitmap_to_dataset(bmp: "mitsuba.Bitmap", dtype=float) -> xr.Dataset:
             }
             channels = pixel_formats[bmp.pixel_format()]
         except KeyError:
-            raise ValueError(f"unsupported bitmap pixel format {bmp.pixel_format()}")
+            if bmp.pixel_format() == mi.Bitmap.PixelFormat.MultiChannel:
+                channels = [f"ch{i}" for i in range(bmp.channel_count())]
+            else:
+                raise ValueError(
+                    f"unsupported bitmap pixel format '{bmp.pixel_format()}'"
+                )
 
     else:
-        warnings.warn(
-            "Passing an array is deprecated (coordinate detection is limited)",
-            DeprecationWarning,
-        )
-        if len(img.shape) < 3:
-            channels = ["Y"]
-        else:
-            channels = {1: ["Y"], 3: ["R", "G", "B"]}[img.shape[2]]
+        raise TypeError
 
-    height = img.shape[0]
-    width = img.shape[1]
+    height, width = img.shape[0], img.shape[1]
 
-    result = xr.Dataset(
-        data_vars={
-            "img": (
-                ["y_index", "x_index", "channel"],
-                np.reshape(img, (height, width, -1)),
-            )
-        },
+    result = xr.DataArray(
+        np.reshape(img, (height, width, -1)),
+        dims=["y_index", "x_index", "channel"],
         coords={
             "y_index": (
                 "y_index",
                 range(height),
                 {"long_name": "height pixel index"},
             ),
-            "y": (
-                "y_index",
-                np.linspace(0, 1, height),
-                {"long_name": "film height coordinate"},
-            ),
             "x_index": (
                 "x_index",
                 range(width),
                 {"long_name": "width pixel index"},
+            ),
+            "channel": (
+                "channel",
+                channels,
+                {"long_name": "film spectral channel"},
+            ),
+            "y": (
+                "y_index",
+                np.linspace(0, 1, height),
+                {"long_name": "film height coordinate"},
             ),
             "x": (
                 "x_index",
                 np.linspace(0, 1, width),
                 {"long_name": "film width coordinate"},
             ),
-            "channel": ("channel", channels, {"long_name": "film spectral channel"}),
         },
     )
 
+    return result
+
+
+def bitmap_to_dataset(bmp: "mitsuba.Bitmap", dtype="float64") -> xr.Dataset:
+    """
+    Format Mitsuba bitmap data as an xarray dataset.
+
+    Parameters
+    ----------
+    bmp : mitsuba.core.Bitmap
+        Mitsuba bitmap to be converted to a dataset.
+
+    dtype : dtype
+        Data type, forwarded to :func:`numpy.array`.
+
+    Returns
+    -------
+    dataset : DataArray
+        Bitmap data as an xarray data array.
+    """
+    result = xr.Dataset(
+        {
+            layer_name: bitmap_to_dataarray(layer, dtype=dtype)
+            for layer_name, layer in bmp.split()
+        }
+    )
     return result

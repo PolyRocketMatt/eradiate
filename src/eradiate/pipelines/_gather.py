@@ -127,7 +127,7 @@ class Gather(PipelineStep):
             # Loop on sensors
             for sensor_id, sensor_bitmap in x[spectral_index]["values"].items():
                 # Collect data
-                ds = bitmap_to_dataset(sensor_bitmap)
+                ds = bitmap_to_dataset(sensor_bitmap).rename({"<root>": "img"})
                 spp = x[spectral_index]["spp"][sensor_id]
 
                 # Set spectral coordinates
