@@ -5,14 +5,14 @@ import typing as t
 
 import attrs
 
-from ._core import EarthObservationExperiment
+from ._core import EarthObservationExperiment, Experiment
 from ._helpers import (
     check_geometry_atmosphere,
     measure_inside_atmosphere,
     surface_converter,
 )
 from .. import converters, validators
-from ..attrs import AUTO, documented, parse_docs
+from ..attrs import AUTO, documented, get_doc, parse_docs
 from ..scenes.atmosphere import (
     Atmosphere,
     HeterogeneousAtmosphere,
@@ -158,35 +158,26 @@ class CanopyAtmosphereExperiment(EarthObservationExperiment):
         default=":class:`BasicSurface(bsdf=LambertianBSDF()) <.BasicSurface>`",
     )
 
+    # Override parent
     _integrator: Integrator = documented(
         attrs.field(
-            default=AUTO,
-            converter=converters.auto_or(integrator_factory.convert),
-            validator=validators.auto_or(
-                attrs.validators.instance_of(Integrator),
-            ),
+            factory=PiecewiseVolPathIntegrator,
+            converter=integrator_factory.convert,
+            validator=attrs.validators.instance_of(Integrator),
         ),
         doc="Monte Carlo integration algorithm specification. "
         "This parameter can be specified as a dictionary which will be "
         "interpreted by :data:`.integrator_factory`. "
-        "If set to :data:`.AUTO`, the integrator is set depending on the "
+        "The integrator is set depending on the "
         "presence of an atmosphere. "
         "If an atmosphere is defined the integrator defaults to "
-        ":class:`.VolPathIntegrator`; otherwise a :class:`.PathIntegrator` is "
-        "used.",
-        type=":class:`.Integrator` or AUTO",
-        init_type=":class:`.Integrator` or dict or AUTO",
-        default="AUTO",
+        ":class:`.VolPathIntegrator` for spherical shell geometry and" 
+        ":class:`.PiecewiseVolPathIntegrator` for plane parallel geometry;"
+        "otherwise a :class:`.PathIntegrator` is used.",
+        type=get_doc(Experiment, attrib="_integrator", field="type"),
+        init_type=get_doc(Experiment, attrib="_integrator", field="init_type"),
+        default=":class:`PiecewiseVolPathIntegrator() <.PiecewiseVolPathIntegrator>`",
     )
-
-    @property
-    def integrator(self) -> Integrator:
-        if self._integrator is AUTO:
-            if self.atmosphere is not None:
-                return VolPathIntegrator()
-            else:
-                return PathIntegrator()
-        return self._integrator
 
     def __attrs_post_init__(self):
         self._normalize_spectral()
@@ -245,24 +236,30 @@ class CanopyAtmosphereExperiment(EarthObservationExperiment):
         """
         Ensures that the integrator is compatible with the atmosphere and geometry.
         """
-        if isinstance(self.geometry, PlaneParallelGeometry):
-            try:
-                if self.atmosphere is None or self.atmosphere.force_majorant:
-                    if isinstance(self._integrator, PiecewiseVolPathIntegrator):
-                        logger.debug("Using piecewise integrator with null or majorant medium, changing to volpath integrator")
-                        self._integrator = VolPathIntegrator()
-            except:
-                # exception will probably arise because of force_majorant not being defined, in which case we revert back to volpath
-                if isinstance(self._integrator, PiecewiseVolPathIntegrator):
-                    logger.debug("Using piecewise integrator with an incompatible medium, changing to volpath integrator")
-                    self._integrator = VolPathIntegrator()
-
-        elif isinstance(self.geometry, SphericalShellGeometry):
-            if isinstance( self._integrator, PiecewiseVolPathIntegrator):
-                logger.debug("Using piecewise integrator with spherical shell geometry, changing to volpath integrator")
-                self._integrator = VolPathIntegrator()
+        if self.atmosphere is None :
+            if (isinstance(self._integrator, PiecewiseVolPathIntegrator)
+                or isinstance(self._integrator, VolPathIntegrator)):
+                    logger.debug("Using volumetric integrator with null atmosphere, changing to path integrator")
+                    self._integrator = PathIntegrator()
         else:
-            RuntimeError
+            if isinstance(self.geometry, PlaneParallelGeometry):
+                try:
+                    if self.atmosphere.force_majorant:
+                        if isinstance(self._integrator, PiecewiseVolPathIntegrator):
+                            logger.debug("Using piecewise integrator with null or majorant medium, changing to volpath integrator")
+                            self._integrator = VolPathIntegrator()
+                except:
+                    # exception will probably arise because of force_majorant not being defined, in which case we revert back to volpath
+                    if isinstance(self._integrator, PiecewiseVolPathIntegrator):
+                        logger.debug("Using piecewise integrator with an incompatible medium, changing to volpath integrator")
+                        self._integrator = VolPathIntegrator()
+
+            elif isinstance(self.geometry, SphericalShellGeometry):
+                if isinstance( self._integrator, PiecewiseVolPathIntegrator):
+                    logger.debug("Using piecewise integrator with spherical shell geometry, changing to volpath integrator")
+                    self._integrator = VolPathIntegrator()
+            else:
+                RuntimeError
 
     def _dataset_metadata(self, measure: Measure) -> dict[str, str]:
         result = super()._dataset_metadata(measure)

@@ -112,14 +112,19 @@ class AtmosphereExperiment(EarthObservationExperiment):
     # Override parent
     _integrator: Integrator = documented(
         attrs.field(
-            factory=VolPathIntegrator,
+            factory=PiecewiseVolPathIntegrator,
             converter=integrator_factory.convert,
             validator=attrs.validators.instance_of(Integrator),
         ),
-        doc=get_doc(Experiment, attrib="_integrator", field="doc"),
+        doc="Monte Carlo integration algorithm specification. "
+        "This parameter can be specified as a dictionary which will be "
+        "interpreted by :data:`.integrator_factory`. "
+        "The integrator defaults to "
+        ":class:`.VolPathIntegrator` for spherical shell geometry and"
+        ":class:`.PiecewiseVolPathIntegrator` for plane parallel geometry;",
         type=get_doc(Experiment, attrib="_integrator", field="type"),
         init_type=get_doc(Experiment, attrib="_integrator", field="init_type"),
-        default=":class:`VolPathIntegrator() <.VolPathIntegrator>`",
+        default=":class:`PiecewiseVolPathIntegrator() <.PiecewiseVolPathIntegrator>`",
     )
 
     def __attrs_post_init__(self):
@@ -176,6 +181,7 @@ class AtmosphereExperiment(EarthObservationExperiment):
                     raise RuntimeError
 
                 measure.target = TargetPoint(target_point)
+
 
     def _normalize_integrator(self) -> None:
         """
