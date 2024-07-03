@@ -26,7 +26,12 @@ from ..scenes.geometry import (
     SceneGeometry,
     SphericalShellGeometry,
 )
-from ..scenes.integrators import Integrator, VolPathIntegrator, integrator_factory
+from ..scenes.integrators import (
+    Integrator, 
+    VolPathIntegrator, 
+    PiecewiseVolPathIntegrator,
+    integrator_factory
+)
 from ..scenes.measure import AbstractDistantMeasure, Measure, TargetPoint
 from ..scenes.surface import BasicSurface
 from ..units import unit_context_config as ucc
@@ -121,6 +126,7 @@ class AtmosphereExperiment(EarthObservationExperiment):
         self._normalize_spectral()
         self._normalize_atmosphere()
         self._normalize_measures()
+        self._normalize_integrator()
 
     def _normalize_atmosphere(self) -> None:
         """
@@ -170,6 +176,29 @@ class AtmosphereExperiment(EarthObservationExperiment):
                     raise RuntimeError
 
                 measure.target = TargetPoint(target_point)
+
+    def _normalize_integrator(self) -> None:
+        """
+        Ensures that the integrator is compatible with the atmosphere and geometry.
+        """
+        if isinstance(self.geometry, PlaneParallelGeometry):
+            try:
+                if self.atmosphere is None or self.atmosphere.force_majorant:
+                    if isinstance(self._integrator, PiecewiseVolPathIntegrator):
+                        logger.debug("Using piecewise integrator with null or majorant medium, changing to volpath integrator")
+                        self._integrator = VolPathIntegrator()
+            except:
+                # exception will probably arise because of force_majorant not being defined, in which case we revert back to volpath
+                if isinstance(self._integrator, PiecewiseVolPathIntegrator):
+                    logger.debug("Using piecewise integrator with an incompatible medium, changing to volpath integrator")
+                    self._integrator = VolPathIntegrator()
+
+        elif isinstance(self.geometry, SphericalShellGeometry):
+            if isinstance( self._integrator, PiecewiseVolPathIntegrator):
+                logger.debug("Using piecewise integrator with spherical shell geometry, changing to volpath integrator")
+                self._integrator = VolPathIntegrator()
+        else:
+            RuntimeError
 
     def _dataset_metadata(self, measure: Measure) -> dict[str, str]:
         result = super()._dataset_metadata(measure)
