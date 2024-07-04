@@ -81,15 +81,18 @@ class CanopyExperiment(EarthObservationExperiment):
     )
 
     # Override parent
-    _integrator: Integrator = documented(
+    integrator: Integrator = documented(
         attrs.field(
             factory=PathIntegrator,
             converter=integrator_factory.convert,
             validator=attrs.validators.instance_of(Integrator),
         ),
-        doc=get_doc(Experiment, attrib="_integrator", field="doc"),
-        type=get_doc(Experiment, attrib="_integrator", field="type"),
-        init_type=get_doc(Experiment, attrib="_integrator", field="init_type"),
+        doc="Monte Carlo integration algorithm specification. "
+        "This parameter can be specified as a dictionary which will be "
+        "interpreted by :data:`.integrator_factory`."
+        "Defaults to PathIntegrator.",
+        type=":class:`Integrator`",
+        init_type=":class:`Integrator` or dict",
         default=":class:`PathIntegrator() <.PathIntegrator>`",
     )
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import typing as t
+import warnings
 
 import attrs
 
@@ -10,6 +11,8 @@ from ._helpers import (
     check_geometry_atmosphere,
     measure_inside_atmosphere,
     surface_converter,
+    check_piecewise_compatible,
+    check_volpath_compatible
 )
 from .. import converters, validators
 from ..attrs import AUTO, documented, get_doc, parse_docs
@@ -158,27 +161,6 @@ class CanopyAtmosphereExperiment(EarthObservationExperiment):
         default=":class:`BasicSurface(bsdf=LambertianBSDF()) <.BasicSurface>`",
     )
 
-    # Override parent
-    _integrator: Integrator = documented(
-        attrs.field(
-            factory=PiecewiseVolPathIntegrator,
-            converter=integrator_factory.convert,
-            validator=attrs.validators.instance_of(Integrator),
-        ),
-        doc="Monte Carlo integration algorithm specification. "
-        "This parameter can be specified as a dictionary which will be "
-        "interpreted by :data:`.integrator_factory`. "
-        "The integrator is set depending on the "
-        "presence of an atmosphere. "
-        "If an atmosphere is defined the integrator defaults to "
-        ":class:`.VolPathIntegrator` for spherical shell geometry and" 
-        ":class:`.PiecewiseVolPathIntegrator` for plane parallel geometry;"
-        "otherwise a :class:`.PathIntegrator` is used.",
-        type=get_doc(Experiment, attrib="_integrator", field="type"),
-        init_type=get_doc(Experiment, attrib="_integrator", field="init_type"),
-        default=":class:`PiecewiseVolPathIntegrator() <.PiecewiseVolPathIntegrator>`",
-    )
-
     def __attrs_post_init__(self):
         self._normalize_spectral()
         self._normalize_atmosphere()
@@ -236,30 +218,26 @@ class CanopyAtmosphereExperiment(EarthObservationExperiment):
         """
         Ensures that the integrator is compatible with the atmosphere and geometry.
         """
-        if self.atmosphere is None :
-            if (isinstance(self._integrator, PiecewiseVolPathIntegrator)
-                or isinstance(self._integrator, VolPathIntegrator)):
-                    logger.debug("Using volumetric integrator with null atmosphere, changing to path integrator")
-                    self._integrator = PathIntegrator()
-        else:
-            if isinstance(self.geometry, PlaneParallelGeometry):
-                try:
-                    if self.atmosphere.force_majorant:
-                        if isinstance(self._integrator, PiecewiseVolPathIntegrator):
-                            logger.debug("Using piecewise integrator with null or majorant medium, changing to volpath integrator")
-                            self._integrator = VolPathIntegrator()
-                except:
-                    # exception will probably arise because of force_majorant not being defined, in which case we revert back to volpath
-                    if isinstance(self._integrator, PiecewiseVolPathIntegrator):
-                        logger.debug("Using piecewise integrator with an incompatible medium, changing to volpath integrator")
-                        self._integrator = VolPathIntegrator()
+        piecewise_compatible, pw_msg = check_piecewise_compatible( self.geometry, self.atmosphere)
+        volpath_compatible, vol_msg = check_volpath_compatible( self.atmosphere)
 
-            elif isinstance(self.geometry, SphericalShellGeometry):
-                if isinstance( self._integrator, PiecewiseVolPathIntegrator):
-                    logger.debug("Using piecewise integrator with spherical shell geometry, changing to volpath integrator")
-                    self._integrator = VolPathIntegrator()
+        if self.integrator is AUTO:
+            if piecewise_compatible:
+                self.integrator = PiecewiseVolPathIntegrator()
+            elif volpath_compatible:
+                self.integrator = VolPathIntegrator()
             else:
-                RuntimeError
+                self.integrator = PathIntegrator()
+        else :
+            msg = ""
+            if isinstance(self.integrator, PiecewiseVolPathIntegrator) and not piecewise_compatible:
+                msg = pw_msg
+
+            if isinstance(self.integrator, VolPathIntegrator) and not volpath_compatible:
+                msg = vol_msg
+
+            if msg != "":
+                raise Exception(msg)
 
     def _dataset_metadata(self, measure: Measure) -> dict[str, str]:
         result = super()._dataset_metadata(measure)
