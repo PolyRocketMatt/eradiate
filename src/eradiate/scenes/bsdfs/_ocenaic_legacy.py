@@ -1,4 +1,4 @@
 from ._core import BSDF
 
-class OceanicLgacyBSDF(BSDF):
+class OceanicLegacyBSDF(BSDF):
     pass

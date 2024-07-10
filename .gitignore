@@ -29,3 +29,5 @@ htmlcov/
 # Default data storage
 .eradiate_downloads/
 .scenarios/*
+
+# Custom
