@@ -31,3 +31,4 @@ htmlcov/
 .scenarios/*
 
 # Custom
+visualizations/cox_munk/

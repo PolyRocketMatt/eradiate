@@ -14,7 +14,7 @@ def sph_to_eucl(theta, phi):
     return mi.Vector3f(cp * st, sp * st, ct)
 
 def convert_wind_speed(wind_speed):
-    return max(0.0, min(1.0, wind_speed / 38.0))
+    return max(0.0, min(1.0, wind_speed / 37.241869))
 
 # Plotting
 def plot_flat(brdf_data):
@@ -86,7 +86,8 @@ def plot_polar_tricf(azimuths, zeniths, brdf_data, levels=16):
 bsdf = mi.load_dict({
     'type': 'oceanic_legacy',
     'wavelength': 0.5,
-    'wind_speed': convert_wind_speed(10.0),
+    'wind_speed': convert_wind_speed(37.241869),
+    'efficiency_correction': False    
 })
 
 # Create a dummy surface interaction to use for the evaluation of the BSDF
@@ -96,7 +97,7 @@ si = dr.zeros(mi.SurfaceInteraction3f)
 si.wi = sph_to_eucl(dr.deg2rad(45.0), dr.deg2rad(0.0))
 
 # Create grid in spherical coordinates and map it into a sphere
-res = 500
+res = 1
 zeniths_o, azimuths_o = dr.meshgrid(
     dr.linspace(mi.Float, 0,     dr.pi,     res),
     dr.linspace(mi.Float, 0, 2 * dr.pi, 2 * res)
