@@ -82,27 +82,47 @@ def plot_polar_tricf(azimuths, zeniths, brdf_data, levels=16):
     # Show
     plt.show()
 
-# BRDF Creation
-bsdf = mi.load_dict({
-    'type': 'oceanic_legacy',
-    'wavelength': 0.5,
-    'wind_speed': convert_wind_speed(37.241869),
-    'efficiency_correction': False    
-})
+wind_speeds = np.linspace(0, 20, 100)
+reflectances = []
+for ws in wind_speeds:
+    # BRDF Creation
+    bsdf = mi.load_dict({
+        'type': 'oceanic_legacy',
+        'wavelength': 0.5,
+        'wind_speed': convert_wind_speed(ws),
+        'solar_azimuth': 0.0,
+        'solar_zenith': dr.pi / 4,
+        'salinity': 0.0
+    })
 
-# Create a dummy surface interaction to use for the evaluation of the BSDF
-si = dr.zeros(mi.SurfaceInteraction3f)
+    # Create a dummy surface interaction to use for the evaluation of the BSDF
+    si = dr.zeros(mi.SurfaceInteraction3f)
 
-# Specify an incident direction with X degrees
-si.wi = sph_to_eucl(dr.deg2rad(45.0), dr.deg2rad(0.0))
+    # Specify an incident direction with X degrees
+    si.wi = sph_to_eucl(dr.deg2rad(45.0), dr.deg2rad(0.0))
 
-# Create grid in spherical coordinates and map it into a sphere
-res = 1
-zeniths_o, azimuths_o = dr.meshgrid(
-    dr.linspace(mi.Float, 0,     dr.pi,     res),
-    dr.linspace(mi.Float, 0, 2 * dr.pi, 2 * res)
-)
-wo = sph_to_eucl(zeniths_o, azimuths_o)
+    # Create grid in spherical coordinates and map it into a sphere
+    res = 1
+    zeniths_o, azimuths_o = dr.meshgrid(
+        dr.linspace(mi.Float, 0,     dr.pi,     res),
+        dr.linspace(mi.Float, 0, 2 * dr.pi, 2 * res)
+    )
+    wo = sph_to_eucl(zeniths_o, azimuths_o)
 
-# Evaluate the BSDF
-brdf_values = bsdf.eval(mi.BSDFContext(), si, wo)
+    # Evaluate the BSDF
+    brdf_values = bsdf.eval(mi.BSDFContext(), si, wo)
+    whitecap_reflectance = np.array(brdf_values).flatten()[0]
+
+    reflectances.append(whitecap_reflectance)
+    print(whitecap_reflectance)
+
+# Plot
+plt.plot(wind_speeds, reflectances)
+plt.xlabel('Wind Speed')
+plt.ylabel('Reflectance')
+
+# Define x-ticks
+xticks = np.arange(0, 21, 5)
+plt.xticks(xticks)
+
+plt.show()
