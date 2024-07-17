@@ -32,6 +32,8 @@ htmlcov/
 
 # Custom
 notebooks/cox_munk/
-notebooks/glints/
 notebooks/cox_munk/*
+notebooks/glints/
 notebooks/glints/*
+notebooks/underlight/
+notebooks/underlight/*
