@@ -1,8 +1,6 @@
 import datetime
 import numpy as np
 import json
-import os
-from multiprocessing import Pool, Manager
 from multiprocessing.dummy import Pool as ThreadPool  
 from Py6S import *
 from tqdm import tqdm
@@ -12,8 +10,6 @@ salinity = 34.3
 pigmentation = 0.3
 
 # Boundary Parameters
-resolution = 25
-
 outgoing_azimuth = 180
 outgoing_zeniths = np.linspace(0, np.deg2rad(89), 90)    
 
@@ -21,12 +17,12 @@ incoming_azimuth = 0
 incoming_zeniths = np.linspace(0, np.deg2rad(89), 90)
 
 # All dataset wind speeds
-wind_speeds = [0.1, 2, 5, 10, 20, 37] #np.arange(1, 38, 1)
+wind_speeds = [0.1, 1, 5, 10, 20, 37]
 
 def generate_data(wind_speed, pbar):
     # SixS Parameters
     s = SixS()
-    s.wavelength = Wavelength(2.2)
+    s.wavelength = Wavelength(0.5)
     s.atmos_profile = AtmosProfile.PredefinedType(AtmosProfile.NoGaseousAbsorption)
     s.aero_profile = AeroProfile.PredefinedType(AeroProfile.NoAerosols)
     s.ground_reflectance = GroundReflectance.HomogeneousOcean(wind_speed, wind_azimuth, salinity, pigmentation)
@@ -44,7 +40,10 @@ def generate_data(wind_speed, pbar):
             s.geometry.view_z = np.rad2deg(outgoing_zenith)
             s.geometry.view_a = np.rad2deg(outgoing_azimuth)
             s.run()
-            reflectances[outgoing_zenith] = s.outputs.values['apparent_reflectance']
+            foam = s.outputs.values['water_component_foam']
+            glint = s.outputs.values['water_component_glint']
+            water = s.outputs.values['water_component_water']
+            reflectances[outgoing_zenith] = foam + glint + water
             pbar.update(1)
 
         # Save dataset as JSON to file in the 'data' directory
@@ -58,7 +57,6 @@ def generate_data(wind_speed, pbar):
     # Write the combined data to a file
     with open(f'data/data_{wind_speed}ms.json', 'w') as f:
         json.dump(combined_data, f)
-
 
 if __name__ == "__main__":
     current_time = datetime.datetime.now()

@@ -1,0 +1,95 @@
+import numpy as np
+import json
+import os
+import drjit as dr
+import mitsuba as mi
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+mi.set_variant("llvm_ad_rgb_double")
+
+def relative_diff(a, b):
+    return (a - b) / b
+
+def simple_diff(a, b):
+    return a - b
+
+def abs_diff(a, b):
+    return np.abs(a - b)
+
+def sph_to_eucl(theta, phi):
+    st, ct = dr.sincos(theta)
+    sp, cp = dr.sincos(phi)
+    return mi.Vector3f(cp * st, sp * st, ct)
+
+wind_speed = 5
+wind_azimuth = 0
+data_file = f'data/data_{wind_speed}ms.json'
+data = None
+
+# Load data
+with open(data_file, 'r') as f:
+    data = json.load(f)
+
+# BSDF Construction where we keep the same parameters as the generated data
+bsdf = mi.load_dict({
+    'type': 'oceanic_legacy',
+    'wavelength': 0.5,
+    'wind_speed': wind_speed,
+    'wind_direction': wind_azimuth,
+    'chlorinity': 19,
+    'pigmentation': 0.3
+})
+
+differences = []
+
+# Comparison loop for each solar zenith 
+for solar_zenith_key in data.keys():
+    solar_zenith = float(solar_zenith_key)
+
+    # Get the reflectance data for the current solar zenith
+    current_data = data[solar_zenith_key]
+    zeniths = list(map(float, current_data.keys()))
+    reflectances = list(map(float, current_data.values()))
+
+    # Create a mitsuba scene to create similar data
+    # Create a surface interaction
+    si = dr.zeros(mi.SurfaceInteraction3f)
+
+    # Create the solar direction. Data was generated at a solar zenith of 0 radians
+    si.wi = sph_to_eucl(solar_zenith, dr.deg2rad(0))
+
+    # Since we want to compare, we create a simple meshgrid of len(outgoing_zeniths) x 1
+    resolution = len(zeniths)
+    zeniths_o, azimuths_o = dr.meshgrid(
+        dr.linspace(mi.Float, np.deg2rad(0), np.deg2rad(89), resolution),
+
+        # Data was generated with a viewing azimuth of π radians
+        dr.linspace(mi.Float, np.pi, np.pi, 1)
+    )
+
+    # Construct the outgoing directions
+    wo = sph_to_eucl(zeniths_o, azimuths_o)
+
+    # Evaluate the BSDF
+    bsdf_values = bsdf.eval(mi.BSDFContext(), si, wo)
+    bsdf_array = np.array(bsdf_values)
+
+    # Extract one channel
+    bsdf_array = bsdf_array[:, 0]
+
+    # Compute the difference between the data and the Mitsuba BSDF
+    reflectances = np.array(reflectances)
+    reflectance_diff = relative_diff(reflectances, bsdf_array)
+    total_diff = np.sum(reflectance_diff)
+    differences.append(total_diff) 
+
+    print(f"Total difference for solar zenith {solar_zenith}: {total_diff}")
+
+# Plot the differences
+plt.plot(differences)
+plt.xlabel('Solar Zenith')
+plt.ylabel('Total Difference')
+
+plt.show()
