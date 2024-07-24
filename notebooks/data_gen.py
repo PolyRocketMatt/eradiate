@@ -11,13 +11,14 @@ pigmentation = 0.3
 
 # Boundary Parameters
 outgoing_azimuth = 180
-outgoing_zeniths = np.linspace(0, np.deg2rad(89), 90)    
+outgoing_zeniths = np.linspace(0, np.deg2rad(89), 18)    
 
 incoming_azimuth = 0
-incoming_zeniths = np.linspace(0, np.deg2rad(89), 90)
+incoming_zeniths = np.linspace(0, np.deg2rad(89), 18)
 
 # All dataset wind speeds
-wind_speeds = [0.1, 1, 5, 10, 20, 37]
+#wind_speeds = [0.1, 1, 5, 10, 37]
+wind_speeds = [1, 10, 37]
 
 def generate_data(wind_speed, pbar):
     # SixS Parameters
@@ -43,7 +44,19 @@ def generate_data(wind_speed, pbar):
             foam = s.outputs.values['water_component_foam']
             glint = s.outputs.values['water_component_glint']
             water = s.outputs.values['water_component_water']
-            reflectances[outgoing_zenith] = foam + glint + water
+            total = foam + glint + water
+            foam_percent = foam / total
+            glint_percent = glint / total
+            water_percent = water / total
+            reflectances[outgoing_zenith] = {
+                'foam': foam,
+                'glint': glint,
+                'water': water,
+                'total': total,
+                'foam_percent': foam_percent,
+                'glint_percent': glint_percent,
+                'water_percent': water_percent
+            }
             pbar.update(1)
 
         # Save dataset as JSON to file in the 'data' directory
