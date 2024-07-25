@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 wind_direction = 0
 salinity = 34.3
+chlorinity = 19
 pigmentation = 0.3
 
 # Boundary Parameters
@@ -74,6 +75,12 @@ def generate_data(wavelength, wind_speed, pbar):
         json_data = {
             'wavelength': wavelength,
             'wind_speed': wind_speed,
+            'solar_azimuth': incoming_azimuth,
+            'view_azimuth': outgoing_azimuth,
+            'wind_direction': wind_direction,
+            'salinity': salinity,
+            'chlorinity': chlorinity,
+            'pigmentation': pigmentation,
             'data': solar_zenith_data
         }
 
