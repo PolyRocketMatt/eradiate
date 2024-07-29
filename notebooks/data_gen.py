@@ -12,10 +12,14 @@ pigmentation = 0.3
 
 # Boundary Parameters
 outgoing_azimuth = 180
-outgoing_zeniths = np.linspace(0, np.deg2rad(89), 45)    
+outgoing_zeniths = np.arange(0, 86, 5)    
 
 incoming_azimuth = 0
-incoming_zeniths = np.linspace(0, np.deg2rad(89), 45)
+incoming_zeniths = np.arange(0, 86, 5)
+
+# To radian
+outgoing_zeniths = np.deg2rad(outgoing_zeniths)
+incoming_zeniths = np.deg2rad(incoming_zeniths)
 
 # All dataset wind speeds
 wind_speeds = [0.1, 1, 10, 37]
