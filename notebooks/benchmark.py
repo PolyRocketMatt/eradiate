@@ -232,18 +232,16 @@ def process_angles(df):
     df['t_o'] = df['view_zenith'].apply(lambda x: f'{np.rad2deg(x):.0f}')
 
 
-def create_facet_plot(wavelength, wind_speed, palette, df, key='relative_error'):
+def process_errors(df):
+    # Add a column for the relative and absolute error in percentage
+    df['relative_error_percentage'] = df['relative_error'] * 100
+    df['absolute_error_percentage'] = df['absolute_error'] * 100
+
+
+def create_facet_plot(wavelength, wind_speed, palette, df, key='relative_error', ymin=-0.1, ymax=0.1, scale='linear'):
     with ChainedAssignent():
         # Get the data for the current wind speed
         df = df[df['wind_speed'] == wind_speed]
-
-        # Add a column which is a copy of the keyed error
-        df['normalized_error'] = df[key]
-
-        for solar_zenith in df['solar_zenith'].unique():
-            mask = df['solar_zenith'] == solar_zenith
-            normalization_constant = df.loc[mask]['reflectance'].max()
-            df.loc[mask, 'normalized_error'] /= normalization_constant
 
         # Initialize the grid
         grid = sns.FacetGrid(df, col='t_i', hue='t_i', palette=palette,
@@ -254,7 +252,7 @@ def create_facet_plot(wavelength, wind_speed, palette, df, key='relative_error')
 
         # Draw a line plot to show the trajectory of each relative error, but space 
         # the relative error such that it is defined over the view zenith
-        grid.map(sns.lineplot, 't_o', 'normalized_error', errorbar=None)
+        grid.map(sns.lineplot, 't_o', key, errorbar=None)
 
         # Draw the vertical line for solar zenith
         def add_vertical_line(data, **kwargs):
@@ -265,17 +263,76 @@ def create_facet_plot(wavelength, wind_speed, palette, df, key='relative_error')
 
         # Adjust the tick positions and labels
         grid.set(xticks=np.arange(0, 19, 6),
-                xlim=(0, 18))
+                xlim=(0, 18),
+                ylim=(ymin, ymax))
 
         # Adjust the arrangement of the plots
         grid.fig.tight_layout(w_pad=1)
+
+        # Set the scale of the plot
+        grid.set(yscale=scale)
+
+        # Set the title of the plot
+        grid.fig.suptitle(f'{key} - {wind_speed} m/s, {wavelength} μm', y=-1.05)
 
         # Make directory for plots/error/wavelength
         if not os.path.exists(f'plots/error/{str(wavelength)}'):
             os.makedirs(f'plots/error/{str(wavelength)}')
 
         # Save the plot
-        grid.savefig(f'plots/error/{str(wavelength)}/error_{wind_speed}ms_{wavelength}.pdf')
+        grid.savefig(f'plots/error/{str(wavelength)}/{key}_{wind_speed}ms_{wavelength}.pdf')
+
+    
+def create_multi_facet_plot(name, wavelength, wind_speed, df, keys, palettes, styles, ymin=-0.1, ymax=0.1, scale='linear'):
+    with ChainedAssignent():
+        # Get the data for the current wind speed
+        df = df[df['wind_speed'] == wind_speed]
+
+        # Reverse key, palette and styles order
+        keys = keys[::-1]
+        palettes = palettes[::-1]
+        styles = styles[::-1]
+
+        # Initialize the grid
+        grid = sns.FacetGrid(df, col='t_i', hue='t_i',
+                            col_wrap=5, height=2.0)
+        
+        # Draw the reference line
+        grid.refline(y=0, linestyle=':')
+
+        # Draw a line plot to show the trajectory of each key
+        for key in keys:
+            palette = palettes[keys.index(key)]
+            style = styles[keys.index(key)]
+            grid.map(sns.lineplot, 't_o', key, errorbar=None, palette=palette, linestyle=style)
+
+        # Draw the vertical line for solar zenith
+        def add_vertical_line(data, **kwargs):
+            solar_zenith = (np.rad2deg(data['solar_zenith'].iloc[0]) / 90) * 18
+            plt.axvline(x=solar_zenith, color='gray', linestyle='--')
+
+        grid.map_dataframe(add_vertical_line)
+
+        # Adjust the tick positions and labels
+        grid.set(xticks=np.arange(0, 19, 6),
+                xlim=(0, 18),
+                ylim=(ymin, ymax))
+
+        # Adjust the arrangement of the plots
+        grid.fig.tight_layout(w_pad=1)
+
+        # Set the scale of the plot
+        grid.set(yscale=scale)
+
+        # Set the title of the plot
+        grid.fig.suptitle(f'{name} - {wind_speed} m/s, {wavelength} μm', y=-1.05)
+
+        # Make directory for plots/error/wavelength
+        if not os.path.exists(f'plots/error/{str(wavelength)}'):
+            os.makedirs(f'plots/error/{str(wavelength)}')
+
+        # Save the plot
+        grid.savefig(f'plots/error/{str(wavelength)}/{name}_{wind_speed}ms_{wavelength}.pdf')
 
 
 def run_complete_benchmark(wavelength):
@@ -288,11 +345,15 @@ def run_complete_benchmark(wavelength):
     # Process solar/viewing angles
     process_angles(df)
 
+    # Process the errors
+    process_errors(df)
+
     # Create the facet plot for each wind speed
     progress = tqdm(wind_speeds, desc='Creating Facet Plots')
     for wind_speed in wind_speeds:
         palette = palettes[wind_speeds.index(wind_speed)]
-        create_facet_plot(wavelength, wind_speed, palette, df, key='absolute_error')
+        create_facet_plot(wavelength, wind_speed, palette, df, key='relative_error_percentage', ymin=-10, ymax=10)
+        create_multi_facet_plot("Reflectance", wavelength, wind_speed, df, keys=['reflectance', 'mitsuba_channel'], palettes=[green_palette, blue_palette   ], styles=['-', '--'], ymin=-0.1, ymax=0.1)
         progress.update(1)
 
 
