@@ -1,0 +1,47 @@
+<scene version='3.0.0'>
+    <default name="spp" value="256"/>
+    <default name="res" value="256"/>
+
+    <integrator type='direct'/>
+
+    <sensor type="perspective" id="sensor">
+        <transform name="to_world">
+            <lookat target="0.0, 0.0, 0"
+                    origin="0.0, -50, 5.0"
+                    up    ="0.0, 0.0, 1.0"/>
+        </transform>
+
+        <sampler type="independent">
+            <integer name="sample_count" value="$spp"/>
+        </sampler>
+
+        <film type="hdrfilm">
+            <rfilter type="box"/>
+            <integer name="width"  value="$res"/>
+            <integer name="height" value="$res"/>
+        </film>
+    </sensor>
+
+    <shape type="rectangle" id="ocean">
+        <transform name="to_world">
+            <scale value="100000.0"/>
+            <translate x="0.0" y="0.0" z="-0.5"/>
+        </transform>
+
+        <bsdf type="oceanic_legacy">
+            <integer name="channel" value="3"/>
+            <integer name="visual_type" value="0"/>
+            <float name="wavelength" value="2.2"/>
+            <float name="wind_speed" value="37"/>
+            <float name="wind_direction" value="0"/>
+            <float name="chlorinity" value="19"/>
+            <float name="pigmentation" value="0.3"/>
+            <float name="alpha" value="50"/>
+        </bsdf>
+    </shape>
+
+    <emitter type="directional" id="light1">
+        <point name="direction" value="0.0, -1.0, -1.0"/>
+        <rgb name="irradiance" value="1.0"/>
+    </emitter>
+</scene>
