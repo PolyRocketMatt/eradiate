@@ -31,13 +31,4 @@ htmlcov/
 .scenarios/*
 
 # Custom
-notebooks/cox_munk/
-notebooks/cox_munk/*
-notebooks/glints/
-notebooks/glints/*
-notebooks/plots/
-notebooks/plots/*
-notebooks/underlight/
-notebooks/underlight/*
-notebooks/data
-notebooks/data/*
+notebooks/validation/plots

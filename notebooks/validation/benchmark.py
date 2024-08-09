@@ -443,7 +443,7 @@ def run_complete_benchmark(wavelength):
     # Create the facet plot for each wind speed
     progress = tqdm(wind_speeds, desc='Creating Facet Plots')
     for wind_speed in wind_speeds:
-        '''for component in components:
+        for component in components:
             component_name = convert_channel(component)
 
             # Regular error plots
@@ -470,7 +470,7 @@ def run_complete_benchmark(wavelength):
                                 palettes=[red_palette, green_palette, blue_palette],
                                 styles=['-', '-', '-'],
                                 tags=['Solar Zenith', 'Foam', 'Glint', 'Underlight'],
-                                auto_range=True)'''
+                                auto_range=True)
         
         create_multi_facet_plot('Component Contribution (Mitsuba)',
                                 wavelength, wind_speed, df, 
