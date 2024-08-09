@@ -5,23 +5,25 @@ from multiprocessing.dummy import Pool as ThreadPool
 from Py6S import *
 from tqdm import tqdm
 
-wind_direction = 0
+# Oceanic parameters
 salinity = 34.3
 chlorinity = 19
 pigmentation = 0.3
 
-# Boundary Parameters
+# Boundary parameters
+wind_direction = 0
+
 outgoing_azimuth = 180
 outgoing_zeniths = np.arange(0, 86, 5)    
 
 incoming_azimuth = 0
 incoming_zeniths = np.arange(0, 86, 5)
 
-# To radian
+# Transform all azimuths and zeniths to radians
 outgoing_zeniths = np.deg2rad(outgoing_zeniths)
 incoming_zeniths = np.deg2rad(incoming_zeniths)
 
-# All dataset wind speeds
+# All dataset wind speeds and wavelengths
 wind_speeds = [0.1, 1, 10, 37]
 wavelengths = [0.4, 0.5, 0.7, 1.5, 2.2]
 
@@ -97,6 +99,7 @@ def generate_data(wavelength, wind_speed, pbar):
         # Print the whole stack trace
         import traceback
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     current_time = datetime.datetime.now()
